@@ -20,21 +20,25 @@
 package org.apache.artemis.client.cdi.extension;
 
 import javax.enterprise.event.Observes;
-import javax.enterprise.inject.spi.AfterBeanDiscovery;
-import javax.enterprise.inject.spi.Extension;
-import javax.enterprise.inject.spi.ProcessBean;
+import javax.enterprise.inject.spi.*;
 
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.artemis.client.cdi.configuration.ArtemisClientConfiguration;
 import org.apache.artemis.client.cdi.logger.ActiveMQCDILogger;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class ArtemisExtension implements Extension {
 
    private boolean foundEmbeddedConfig = false;
    private boolean foundConfiguration = false;
+   private Set<Bean<ArtemisClientConfiguration>> beans = new HashSet<>();
 
    void foundClientConfig(@Observes ProcessBean<?> processBean) {
       if (processBean.getBean().getTypes().contains(ArtemisClientConfiguration.class)) {
+         beans.add((Bean<ArtemisClientConfiguration>) processBean.getBean());
+
          ActiveMQCDILogger.LOGGER.discoveredConfiguration(processBean);
          foundConfiguration = true;
       }
@@ -47,11 +51,25 @@ public class ArtemisExtension implements Extension {
       }
    }
 
-   void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery) {
+   void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery, BeanManager beanManager) {
       if (!foundConfiguration) {
-         afterBeanDiscovery.addBean(new ArtemisClientConfigBean());
+         ArtemisClientConfigBean configurationBean = new ArtemisClientConfigBean();
+
+         afterBeanDiscovery.addBean(configurationBean);
+
+         ConnectionFactoryBean connectionFactoryBean = new ConnectionFactoryBean(beanManager, configurationBean);
+
+         afterBeanDiscovery.addBean(connectionFactoryBean);
+         afterBeanDiscovery.addBean(new JMSContextBean(beanManager, connectionFactoryBean));
       } else {
          ActiveMQCDILogger.LOGGER.notUsingDefaultConfiguration();
+
+         for (Bean<ArtemisClientConfiguration> configurationBean : beans){
+            ConnectionFactoryBean connectionFactoryBean = new ConnectionFactoryBean(beanManager, configurationBean);
+
+            afterBeanDiscovery.addBean(connectionFactoryBean);
+            afterBeanDiscovery.addBean(new JMSContextBean(beanManager, connectionFactoryBean));
+         }
       }
       if (!foundEmbeddedConfig) {
          afterBeanDiscovery.addBean(new ArtemisEmbeddedServerConfigBean());

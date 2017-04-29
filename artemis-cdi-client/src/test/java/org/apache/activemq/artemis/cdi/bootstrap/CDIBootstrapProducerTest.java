@@ -25,7 +25,6 @@ import javax.inject.Inject;
 
 import org.apache.artemis.client.cdi.configuration.ArtemisClientConfiguration;
 import org.apache.artemis.client.cdi.extension.ArtemisExtension;
-import org.apache.artemis.client.cdi.factory.ConnectionFactoryProvider;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
@@ -44,7 +43,7 @@ public class CDIBootstrapProducerTest {
    public static Archive<?> createArchive() {
       return ShrinkWrap.create(JavaArchive.class)
          .addAsServiceProviderAndClasses(Extension.class, ArtemisExtension.class)
-         .addClasses(ConnectionFactoryProvider.class, CDIProducers.class)
+         .addClasses(CDIProducers.class)
          .addAsManifestResource(EmptyAsset.INSTANCE, "beans.xml");
    }
 
